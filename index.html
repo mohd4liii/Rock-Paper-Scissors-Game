@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mickey RPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #FFFDD0;
+            color: #4682B4;
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;         /* FIX: min-height instead of height so content never clips */
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* ── SETUP SCREEN ── */
+        #setup-screen {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #setup-screen h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(2rem, 8vw, 3rem);
+        }
+
+        #setup-screen p {
+            font-size: clamp(1rem, 4vw, 1.2rem);
+            opacity: 0.8;
+        }
+
+        input {
+            padding: 14px 18px;
+            font-size: 1.1rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            border-radius: 12px;
+            border: 2.5px solid #4682B4;
+            width: min(280px, 80vw);
+            text-align: center;
+            background: white;
+            color: #4682B4;
+            outline: none;
+        }
+
+        input:focus { border-color: #2a5f9e; box-shadow: 0 0 0 3px rgba(70,130,180,0.2); }
+
+        /* ── GAME SCREEN ── */
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 520px;
+            gap: 0;
+        }
+
+        #game-screen h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(1.4rem, 6vw, 2.4rem);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        /* Score bar */
+        #scoreboard {
+            display: flex;
+            gap: 24px;
+            font-size: clamp(0.85rem, 3.5vw, 1rem);
+            font-weight: 900;
+            opacity: 0.75;
+            margin-bottom: 12px;
+        }
+
+        #scoreboard span { color: #4682B4; }
+        #scoreboard .score-val { color: #2a5f9e; font-size: 1.2em; }
+
+        /* Result text */
+        #result-display {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(1.8rem, 7vw, 3rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            min-height: 3.2rem;
+            margin-bottom: 16px;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        /* ── HANDS AREA — THE FIX ── */
+        /*
+          Root cause of overlap: negative `top` values + fixed height container.
+          Fix: Use normal flex layout. No negative positioning.
+          Hands face each other by rotating within their own wrapper space.
+        */
+        .game-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;        /* FIX: align to bottom so hands "face off" naturally */
+            width: 100%;
+            padding: 0 10px;
+            margin-bottom: 8px;
+        }
+
+        .hand-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 45%;
+            gap: 8px;                     /* FIX: gap instead of negative margin */
+        }
+
+        .hand {
+            font-size: clamp(60px, 16vw, 110px);   /* FIX: responsive via clamp, no fixed px */
+            filter: drop-shadow(0 6px 8px rgba(70,130,180,0.25));
+            display: block;
+            line-height: 1;               /* FIX: prevents extra whitespace inside emoji */
+            /* NO negative top, NO position:relative offset */
+        }
+
+        #user-hand { transform: rotate(90deg) scaleX(-1); }
+        #comp-hand { transform: rotate(-90deg); }
+
+        /* Shake animations — updated to match new base transforms */
+        .shaking-user { animation: protractorUser 0.6s ease-in-out infinite; }
+        .shaking-comp { animation: protractorComp 0.6s ease-in-out infinite; }
+
+        @keyframes protractorUser {
+            0%, 100% { transform: rotate(75deg) scaleX(-1); }
+            50%       { transform: rotate(105deg) scaleX(-1); }
+        }
+        @keyframes protractorComp {
+            0%, 100% { transform: rotate(-75deg); }
+            50%       { transform: rotate(-105deg); }
+        }
+
+        .label {
+            color: #4682B4;
+            opacity: 0.65;
+            text-transform: uppercase;
+            font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+            font-weight: 900;
+            letter-spacing: 1px;
+            /* FIX: no negative margin — gap on parent handles spacing */
+        }
+
+        /* ── BUTTONS ── */
+        .controls {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 380px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        button {
+            background-color: #ADD8E6;
+            color: #4682B4;
+            border: 2.5px solid #4682B4;
+            padding: 14px 8px;
+            font-size: clamp(0.8rem, 3vw, 1rem);
+            font-family: 'Nunito', sans-serif;
+            font-weight: 900;
+            border-radius: 12px;
+            flex: 1;
+            box-shadow: 0 4px 0px #4682B4;
+            -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            letter-spacing: 0.5px;
+        }
+
+        button:active  { transform: translateY(3px); box-shadow: none; }
+        button:hover:not(:disabled) { background-color: #9dc8e0; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Result colors */
+        .win-text  { color: #2ecc71; }
+        .lose-text { color: #e74c3c; }
+        .tie-text  { color: #e67e22; }
+
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop {
+            0%   { transform: scale(0.5); opacity: 0.5; }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen">
+        <h1>👋 Welcome!</h1>
+        <p>Enter your name to play:</p>
+        <input type="text" id="name-input" placeholder="Your Name" maxlength="12">
+        <button onclick="initGame()" style="max-width:200px; margin-top:4px;">START GAME ✊</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen">
+        <h1>R.P.S. SHOWDOWN</h1>
+
+        <div id="scoreboard">
+            <span>YOU: <span class="score-val" id="score-player">0</span></span>
+            <span>TIES: <span class="score-val" id="score-ties">0</span></span>
+            <span>MICKEY: <span class="score-val" id="score-mickey">0</span></span>
+        </div>
+
+        <div id="result-display">CHOOSE!</div>
+
+        <div class="game-container">
+            <div class="hand-wrapper">
+                <div id="user-hand" class="hand">✊</div>
+                <div id="p-label" class="label">PLAYER</div>
+            </div>
+            <div class="hand-wrapper">
+                <div id="comp-hand" class="hand">✊</div>
+                <div class="label">MICKEY</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="playGame('rock')">✊ ROCK</button>
+            <button onclick="playGame('paper')">✋ PAPER</button>
+            <button onclick="playGame('scissors')">✌️ SCISSORS</button>
+        </div>
+    </div>
+
+    <script>
+        const icons  = { rock: '✊', paper: '✋', scissors: '✌️' };
+        const chant  = ["ROCK", "PAPER", "SCISSORS", "SHOOT!"];
+        const scores = { player: 0, mickey: 0, ties: 0 };
+
+        function initGame() {
+            const name = document.getElementById('name-input').value.trim();
+            if (name) document.getElementById('p-label').innerText = name.toUpperCase();
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display  = 'flex';
+        }
+
+        // Allow Enter key on name input
+        document.getElementById('name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') initGame();
+        });
+
+        function updateScoreboard() {
+            document.getElementById('score-player').innerText = scores.player;
+            document.getElementById('score-mickey').innerText = scores.mickey;
+            document.getElementById('score-ties').innerText   = scores.ties;
+        }
+
+        function playGame(choice) {
+            const res  = document.getElementById('result-display');
+            const h1   = document.getElementById('user-hand');
+            const h2   = document.getElementById('comp-hand');
+            const btns = document.querySelectorAll('.controls button');
+
+            btns.forEach(b => b.disabled = true);
+            res.className = '';           // clear result classes
+            res.innerText = '';
+            h1.classList.add('shaking-user');
+            h2.classList.add('shaking-comp');
+            h1.innerText = '✊';
+            h2.innerText = '✊';
+
+            let step = 0;
+            const timer = setInterval(() => {
+                res.innerText = chant[step++];
+                if (step === chant.length) {
+                    clearInterval(timer);
+                    h1.classList.remove('shaking-user');
+                    h2.classList.remove('shaking-comp');
+                    reveal(choice);
+                    btns.forEach(b => b.disabled = false);
+                }
+            }, 600);
+        }
+
+        function reveal(userChoice) {
+            const res  = document.getElementById('result-display');
+            const h1   = document.getElementById('user-hand');
+            const h2   = document.getElementById('comp-hand');
+            const name = document.getElementById('p-label').innerText;
+
+            const options   = ['rock', 'paper', 'scissors'];
+            const compChoice = options[Math.floor(Math.random() * 3)];
+
+            h1.innerText = icons[userChoice];
+            h2.innerText = icons[compChoice];
+
+            res.classList.add('animate-pop');
+
+            if (userChoice === compChoice) {
+                res.innerText = "IT'S A TIE!";
+                res.classList.add('tie-text');
+                scores.ties++;
+            } else if (
+                (userChoice === 'rock'     && compChoice === 'scissors') ||
+                (userChoice === 'paper'    && compChoice === 'rock')     ||
+                (userChoice === 'scissors' && compChoice === 'paper')
+            ) {
+                res.innerText = `${name} WINS! 🎉`;
+                res.classList.add('win-text');
+                scores.player++;
+            } else {
+                res.innerText = "MICKEY WINS! 😈";
+                res.classList.add('lose-text');
+                scores.mickey++;
+            }
+
+            updateScoreboard();
+        }
+    </script>
+</body>
+</html>
